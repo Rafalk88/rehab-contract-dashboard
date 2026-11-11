@@ -1,3 +1,5 @@
 # Power BI Project (PBIP): local files that should not be committed
 **/.pbi/localSettings.json
 **/.pbi/cache.abf
+
+.venv/

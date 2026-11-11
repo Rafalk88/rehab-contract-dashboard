@@ -1,0 +1,5 @@
+unit_id,nazwa,typ,grupa_wiekowa
+1,Poradnia rehabilitacyjna dzieci,poradnia,dzieci
+2,Poradnia rehabilitacyjna dorośli,poradnia,dorośli
+3,Zakład rehabilitacji dzieci,zakład,dzieci
+4,Zakład rehabilitacji dorośli,zakład,dorośli
