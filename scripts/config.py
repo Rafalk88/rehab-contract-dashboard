@@ -30,20 +30,44 @@ HOLIDAYS = [
 ]
 # NOTE: Easter Monday and Corpus Christi move every year: update them when YEAR changes.
 
+# --- Totals (the generator derives per-unit numbers from these) ------------
+PATIENTS_NUMBER = 3000   # ASSUMPTION: unique patients per year, all units
+CHILDREN_SHARE = 0.3     # ASSUMPTION: share of patients (and doctors) in children's units
+CLINIC_PATIENTS = 753    # real order of magnitude (13.11): unique clinic patients last year
+DOCTOR_NUMBER = 4        # ASSUMPTION: doctors in total, all in the clinic
+PHYSIO_NUMBER = 12       # ASSUMPTION: physiotherapists in total, all in the rehab unit
+
+
+def _split(total, children_share):
+    """Split a total into (adults, children), rounding children and keeping the sum."""
+    children = round(total * children_share)
+    return total - children, children
+
+
+_clinic_pat = _split(CLINIC_PATIENTS, CHILDREN_SHARE)
+_rehab_pat = _split(PATIENTS_NUMBER - CLINIC_PATIENTS, CHILDREN_SHARE)
+_doctors = _split(DOCTOR_NUMBER, CHILDREN_SHARE)
+_physios = _split(PHYSIO_NUMBER, CHILDREN_SHARE)
+
+# Clinic is open 3 days a week. Average visits per opening day, both age groups together
+# (real order of magnitude, 13.11). Monday = 0; days not listed are closed.
+CLINIC_SCHEDULE = {1: 16, 3: 12, 4: 3}  # Tue, Thu, Fri
+_clinic_sched = {day: _split(n, CHILDREN_SHARE) for day, n in CLINIC_SCHEDULE.items()}
+
 # --- Units -----------------------------------------------------------------
 # type "clinic": doctor visits, low volume. type "rehab_unit": physiotherapy, high volume.
-# visits_per_day: average scheduled visits per working day.
-# patients: unique patients per year (each gets at least one visit).
-# Real reference (13.11): the clinic had 753 unique patients last year.
+# schedule: average visits per opening day (clinic, from CLINIC_SCHEDULE), used as is.
+# visits_per_day: average visits per working day, multiplied by WEEKDAY (ASSUMPTION).
+# staff and patients (unique per year, each gets at least one visit) come from the totals above.
 UNITS = {
     1: dict(name="Poradnia rehabilitacyjna dla dorosłych", type="clinic", age_group="adults",
-            visits_per_day=2.5, staff=1, patients=250),                      # ASSUMPTION
+            schedule={d: a for d, (a, _) in _clinic_sched.items()}, staff=_doctors[0], patients=_clinic_pat[0]),
     2: dict(name="Poradnia rehabilitacyjna dla dzieci", type="clinic", age_group="children",
-            visits_per_day=2.5, staff=1, patients=250),                      # ASSUMPTION
+            schedule={d: ch for d, (_, ch) in _clinic_sched.items()}, staff=_doctors[1], patients=_clinic_pat[1]),
     3: dict(name="Zakład Rehabilitacji Leczniczej dla Dorosłych", type="rehab_unit", age_group="adults",
-            visits_per_day=80, staff=8, patients=900),                       # ASSUMPTION
+            visits_per_day=80, staff=_physios[0], patients=_rehab_pat[0]),
     4: dict(name="Zakład Rehabilitacji Leczniczej dla Dzieci", type="rehab_unit", age_group="children",
-            visits_per_day=35, staff=4, patients=400),                       # ASSUMPTION
+            visits_per_day=35, staff=_physios[1], patients=_rehab_pat[1]),
 }
 STAFF_ROLE = {"clinic": "doctor", "rehab_unit": "physiotherapist"}
 
@@ -56,7 +80,7 @@ SEASONALITY = {1: 1.00, 2: 1.05, 3: 1.05, 4: 1.00, 5: 1.00, 6: 0.95,
                7: 0.75, 8: 0.70, 9: 1.00, 10: 1.05, 11: 1.05, 12: 0.85}
 # Extra summer dip for children (camps, holidays). ASSUMPTION
 CHILDREN_SUMMER = {7: 0.85, 8: 0.85}
-# Multiplier by weekday, Monday = 0. ASSUMPTION
+# Multiplier by weekday, Monday = 0 (units with visits_per_day only). ASSUMPTION
 WEEKDAY = {0: 1.10, 1: 1.05, 2: 1.00, 3: 1.00, 4: 0.85}
 
 # --- Visit type and duration -----------------------------------------------
@@ -73,9 +97,3 @@ REASONS = {
     "no_show": {"no specific reason provided": 0.6, "sickness": 0.2, "forgot": 0.2},
     "rescheduled": {"patient request": 0.55, "staff absence": 0.30, "equipment unavailable": 0.15},
 }
-
-# --- To decide: not used by the generator yet ------------------------------
-# These overlap with UNITS above (which gives 2 doctors, 1800 patients, 36% children).
-DOCTOR_NUMBER = 4            # ASSUMPTION: doctors in total
-PATIENTS_NUMBER = 3000       # ASSUMPTION: unique patients per year, all units
-CHILDREN_SHARE = 0.3         # ASSUMPTION: share of patients who are children
